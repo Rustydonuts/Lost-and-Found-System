@@ -8,7 +8,6 @@ public class Lost {
     private String contact;
     private int reporterId;
 
-    // Constructor for creating a new Lost item
     public Lost(String itemName, String category, String description, String location, String date, String contact, int reporterId) {
         this.id = 0;
         this.itemName = itemName;
@@ -20,7 +19,6 @@ public class Lost {
         this.reporterId = reporterId;
     }
 
-    // Constructor for items retrieved from Database View
     public Lost(int id, String itemName, String category, String description, String location, String date, String contact, int reporterId) {
         this.id = id;
         this.itemName = itemName;
@@ -40,14 +38,4 @@ public class Lost {
     public String getDate() { return date; }
     public String getContact() { return contact; }
     public int getReporterId() { return reporterId; }
-
-    public void display() {
-        if (id > 0) System.out.println("Item ID     : " + id);
-        System.out.println("Item Name   : " + itemName);
-        System.out.println("Category    : " + category);
-        System.out.println("Description : " + description);
-        System.out.println("Location    : " + location);
-        System.out.println("Date        : " + date);
-        System.out.println("Contact     : " + contact);
-    }
 }
