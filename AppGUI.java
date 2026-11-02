@@ -1,7 +1,6 @@
 import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
 import java.awt.*;
-import java.util.Vector;
 
 public class AppGUI extends JFrame {
     private LostAndFoundSystem system;
@@ -33,7 +32,6 @@ public class AppGUI extends JFrame {
         tabbedPane.addTab("Report Found Item", createReportFoundPanel());
         tabbedPane.addTab("Claim Item (ACID Demo)", createClaimPanel());
         
-        // ADMIN ONLY TAB
         if (currentUser.isAdmin()) {
             tabbedPane.addTab("Admin DBMS Utilities (EOD & Views)", createAdminUtilitiesPanel());
         }
@@ -146,15 +144,27 @@ public class AppGUI extends JFrame {
     private JPanel createDashboardPanel() {
         JPanel panel = new JPanel(new GridLayout(2, 1, 10, 10));
 
-        lostModel = new DefaultTableModel(new String[]{"ID", "Item Name", "Category", "Description", "Location", "Date Reported", "Contact"}, 0);
+        // Overriding isCellEditable to lock lost items table cells
+        lostModel = new DefaultTableModel(new String[]{"ID", "Item Name", "Category", "Description", "Location", "Date Reported", "Contact"}, 0) {
+            @Override
+            public boolean isCellEditable(int row, int column) {
+                return false;
+            }
+        };
         lostTable = new JTable(lostModel);
-        lostTable.getTableHeader().setReorderingAllowed(false); // DISABLE COLUMN MOVING
+        lostTable.getTableHeader().setReorderingAllowed(false);
         JScrollPane lostSp = new JScrollPane(lostTable);
         lostSp.setBorder(BorderFactory.createTitledBorder("Lost Items Listing"));
 
-        foundModel = new DefaultTableModel(new String[]{"ID", "Item Name", "Category", "Description", "Location", "Date Reported", "Contact"}, 0);
+        // Overriding isCellEditable to lock found items table cells
+        foundModel = new DefaultTableModel(new String[]{"ID", "Item Name", "Category", "Description", "Location", "Date Reported", "Contact"}, 0) {
+            @Override
+            public boolean isCellEditable(int row, int column) {
+                return false;
+            }
+        };
         foundTable = new JTable(foundModel);
-        foundTable.getTableHeader().setReorderingAllowed(false); // DISABLE COLUMN MOVING
+        foundTable.getTableHeader().setReorderingAllowed(false);
         JScrollPane foundSp = new JScrollPane(foundTable);
         foundSp.setBorder(BorderFactory.createTitledBorder("Found Items Listing"));
 
@@ -217,7 +227,7 @@ public class AppGUI extends JFrame {
             refreshTables();
             JOptionPane.showMessageDialog(this, "Lost item reported successfully!");
             nameField.setText(""); descField.setText(""); locField.setText(""); contactField.setText("");
-            tabbedPane.setSelectedIndex(0); // Return to Dashboard
+            tabbedPane.setSelectedIndex(0);
         });
 
         panel.add(new JLabel()); panel.add(submitBtn);
@@ -266,7 +276,7 @@ public class AppGUI extends JFrame {
             refreshTables();
             JOptionPane.showMessageDialog(this, "Found item reported successfully!");
             nameField.setText(""); descField.setText(""); locField.setText(""); contactField.setText("");
-            tabbedPane.setSelectedIndex(0); // Return to Dashboard
+            tabbedPane.setSelectedIndex(0);
         });
 
         panel.add(new JLabel()); panel.add(submitBtn);
