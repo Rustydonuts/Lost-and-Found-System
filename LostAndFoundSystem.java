@@ -177,10 +177,12 @@ public class LostAndFoundSystem {
         }
     }
 
-    public String claimItemWithACID(int foundItemId, int matchingLostItemId, int claimerUserId) {
+    // ENFORCED ACID TRANSACTION WITH USER OWNERSHIP AUTHORIZATION
+    public String claimItemWithACID(int foundItemId, int matchingLostItemId, int claimerUserId, boolean isAdmin) {
         StringBuilder log = new StringBuilder();
         log.append("[ACID TRANSACTION STARTED]\n1. setAutoCommit(false)\n");
 
+        String checkLostSql = "SELECT reporter_id FROM lost_items WHERE id = ?";
         String deleteFoundSql = "DELETE FROM found_items WHERE id = ?";
         String deleteLostSql = "DELETE FROM lost_items WHERE id = ?";
         String auditSql = "INSERT INTO audit_log (action_type, item_name) VALUES (?, ?)";
@@ -188,6 +190,30 @@ public class LostAndFoundSystem {
         try (Connection conn = DriverManager.getConnection(URL, USER, PASSWORD)) {
             conn.setAutoCommit(false);
 
+            // AUTHORIZATION CHECK: Verify that the claimer is the user who reported the lost item
+            if (matchingLostItemId > 0) {
+                try (PreparedStatement checkStmt = conn.prepareStatement(checkLostSql)) {
+                    checkStmt.setInt(1, matchingLostItemId);
+                    ResultSet rs = checkStmt.executeQuery();
+                    if (rs.next()) {
+                        int originalReporterId = rs.getInt("reporter_id");
+                        if (!isAdmin && originalReporterId != claimerUserId) {
+                            conn.rollback();
+                            return "X. PERMISSION DENIED: Lost Item ID #" + matchingLostItemId + 
+                                   " was reported by User ID #" + originalReporterId + 
+                                   ". You (User ID #" + claimerUserId + ") are not authorized to claim this item!";
+                        }
+                    } else {
+                        conn.rollback();
+                        return "X. Transaction Failed: Matching Lost Item ID #" + matchingLostItemId + " does not exist.";
+                    }
+                }
+            } else if (!isAdmin) {
+                conn.rollback();
+                return "X. PERMISSION DENIED: Standard users must specify their valid Lost Item ID to verify ownership!";
+            }
+
+            // EXECUTE ATOMIC DELETIONS AND AUDIT LOG
             try (PreparedStatement stmtFound = conn.prepareStatement(deleteFoundSql);
                  PreparedStatement stmtLost = conn.prepareStatement(deleteLostSql);
                  PreparedStatement stmtAudit = conn.prepareStatement(auditSql)) {
@@ -196,7 +222,7 @@ public class LostAndFoundSystem {
                 int foundRows = stmtFound.executeUpdate();
                 if (foundRows == 0) {
                     conn.rollback();
-                    return "X. Transaction Failed: Found Item ID " + foundItemId + " does not exist. Rolled back.";
+                    return "X. Transaction Failed: Found Item ID #" + foundItemId + " does not exist. Rolled back.";
                 }
                 log.append("2. Removed Found Item ID ").append(foundItemId).append(" from 'found_items'\n");
 
@@ -204,14 +230,14 @@ public class LostAndFoundSystem {
                     stmtLost.setInt(1, matchingLostItemId);
                     int lostRows = stmtLost.executeUpdate();
                     if (lostRows > 0) {
-                        log.append("3. Removed matching Lost Item ID ").append(matchingLostItemId).append(" from 'lost_items'\n");
+                        log.append("3. Removed authorized Lost Item ID ").append(matchingLostItemId).append(" from 'lost_items'\n");
                     }
                 }
 
-                stmtAudit.setString(1, "CLAIMED BY USER ID " + claimerUserId);
+                stmtAudit.setString(1, "AUTHORIZED CLAIM BY USER ID " + claimerUserId);
                 stmtAudit.setString(2, "Found ID: " + foundItemId + " | Lost ID: " + matchingLostItemId);
                 stmtAudit.executeUpdate();
-                log.append("4. Logged claim audit event\n");
+                log.append("4. Logged authorized claim audit event\n");
 
                 conn.commit();
                 log.append("5. conn.commit() -> Transaction committed atomically!");

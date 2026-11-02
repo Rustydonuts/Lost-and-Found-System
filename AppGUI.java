@@ -30,7 +30,7 @@ public class AppGUI extends JFrame {
         tabbedPane.addTab("Dashboard & Items", createDashboardPanel());
         tabbedPane.addTab("Report Lost Item", createReportLostPanel());
         tabbedPane.addTab("Report Found Item", createReportFoundPanel());
-        tabbedPane.addTab("Claim Item (ACID Demo)", createClaimPanel());
+        tabbedPane.addTab("Claim Item ", createClaimPanel());
         
         if (currentUser.isAdmin()) {
             tabbedPane.addTab("Admin DBMS Utilities (EOD & Views)", createAdminUtilitiesPanel());
@@ -144,7 +144,6 @@ public class AppGUI extends JFrame {
     private JPanel createDashboardPanel() {
         JPanel panel = new JPanel(new GridLayout(2, 1, 10, 10));
 
-        // Overriding isCellEditable to lock lost items table cells
         lostModel = new DefaultTableModel(new String[]{"ID", "Item Name", "Category", "Description", "Location", "Date Reported", "Contact"}, 0) {
             @Override
             public boolean isCellEditable(int row, int column) {
@@ -156,7 +155,6 @@ public class AppGUI extends JFrame {
         JScrollPane lostSp = new JScrollPane(lostTable);
         lostSp.setBorder(BorderFactory.createTitledBorder("Lost Items Listing"));
 
-        // Overriding isCellEditable to lock found items table cells
         foundModel = new DefaultTableModel(new String[]{"ID", "Item Name", "Category", "Description", "Location", "Date Reported", "Contact"}, 0) {
             @Override
             public boolean isCellEditable(int row, int column) {
@@ -288,22 +286,27 @@ public class AppGUI extends JFrame {
         panel.setBorder(BorderFactory.createEmptyBorder(30, 50, 30, 50));
 
         JTextField foundIdField = new JTextField();
-        JTextField lostIdField = new JTextField("0");
+        JTextField lostIdField = new JTextField();
 
         panel.add(new JLabel("Found Item ID to Claim (Required):")); panel.add(foundIdField);
-        panel.add(new JLabel("Matching Lost Item ID (Optional, 0 if none):")); panel.add(lostIdField);
+        panel.add(new JLabel("Your Matching Lost Item ID (Required for Students):")); panel.add(lostIdField);
 
-        JButton claimBtn = new JButton("Execute ACID Transaction Claim");
+        JButton claimBtn = new JButton("Execute Authorized ACID Claim");
         claimBtn.addActionListener(e -> {
             try {
                 int fid = Integer.parseInt(foundIdField.getText().trim());
-                int lid = Integer.parseInt(lostIdField.getText().trim());
-                String result = system.claimItemWithACID(fid, lid, currentUser.getUserId());
+                int lid = lostIdField.getText().trim().isEmpty() ? 0 : Integer.parseInt(lostIdField.getText().trim());
+                
+                // Passes User ID and Admin flag for verification
+                String result = system.claimItemWithACID(fid, lid, currentUser.getUserId(), currentUser.isAdmin());
                 logArea.setText(result);
                 refreshTables();
-                tabbedPane.setSelectedIndex(0);
+                if (result.contains("committed atomically")) {
+                    JOptionPane.showMessageDialog(this, "Item claimed successfully!");
+                    tabbedPane.setSelectedIndex(0);
+                }
             } catch (NumberFormatException ex) {
-                JOptionPane.showMessageDialog(this, "IDs must be valid numeric integers.", "Input Error", JOptionPane.ERROR_MESSAGE);
+                JOptionPane.showMessageDialog(this, "Item IDs must be valid numeric integers.", "Input Error", JOptionPane.ERROR_MESSAGE);
             }
         });
 
